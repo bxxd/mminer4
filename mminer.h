@@ -14,7 +14,7 @@
 #include <getopt.h>
 #include "cuda_helper.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 #if DEBUG
 
