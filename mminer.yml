@@ -162,11 +162,11 @@ Resources:
                 cat > runner.sh << __EOF__
                 #!/bin/bash -x
                 SERVERS=(us1 us2 eu1 asia1)
-                while (true); do
+                
                   ./mminer4 -a ${EthWallet} -l 2475882076944016005221515264 > out01 &
                   sleep 1
                   ./mminer4 -a ${EthWallet} -l 2475882076944016005221515264 > out02 &
-                done
+                
                 __EOF__
                 chmod +x runner.sh
                 nohup ./runner.sh &
