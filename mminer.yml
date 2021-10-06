@@ -161,7 +161,6 @@ Resources:
                 sh make4.sh
                 cat > runner.sh << __EOF__
                 #!/bin/bash -x
-                SERVERS=(us1 us2 eu1 asia1)
                 
                   ./mminer4 -a ${EthWallet} -l 2475882076944016005221515264 > out01 &
                   sleep 1
