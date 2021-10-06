@@ -1,35 +1,4 @@
-Skip to content
-Search or jump to…
-Pull requests
-Issues
-Marketplace
-Explore
- 
-@bxxd 
-mludvig
-/
-aws-ethereum-miner
-Public
-7
-4145
-Code
-Issues
-4
-Pull requests
-1
-Actions
-Projects
-Wiki
-Security
-Insights
-aws-ethereum-miner/template-eth.yml
-@mludvig
-mludvig Added RepoUrl
-Latest commit 9a84c7a on Mar 11
- History
- 1 contributor
-219 lines (200 sloc)  6.18 KB
-  
+
 AWSTemplateFormatVersion: '2010-09-09'
 
 Metadata:
@@ -62,13 +31,13 @@ Parameters:
     #- g3.8xlarge    # 2 GPU Tesla M60
     - g4dn.xlarge   # 1 GPU Tesla T4 -- best value (cost/performance)
     - g4dn.2xlarge  # 1 GPU Tesla T4
-    - g4dn.12xlarge # 4 GPU Tesla T4
+    # - g4dn.12xlarge # 4 GPU Tesla T4
     #- p2.xlarge     # 1 GPU Tesla K80
     #- p2.8xlarge    # 8 GPU Tesla K80
     #- p2.16xlarge   # 16 GPU Tesla K80
     - p3.2xlarge    # 1 GPU Tesla V100
-    - p3.8xlarge    # 4 GPU Tesla V100
-    - p3.16xlarge   # 8 GPU Tesla V100
+    # - p3.8xlarge    # 4 GPU Tesla V100
+    # - p3.16xlarge   # 8 GPU Tesla V100
     Default: g4dn.xlarge
 
   InstanceCount:
@@ -185,15 +154,18 @@ Resources:
                 cd /tmp
                 INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id | cut -b-8)
                 AZ_ID=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone-id)
-                wget -O lolminer.tar.gz https://github.com/Lolliedieb/lolMiner-releases/releases/download/1.28/lolMiner_v1.28a_Lin64.tar.gz
-                tar xvfz lolminer.tar.gz
-                cd 1.28a
+                wget -O mminer.tar.gz https://github.com/bxxd/mminer4/archive/refs/tags/release.tar.gz
+                tar xvfz mminer.tar.gz
+                sudo apt install -y libgmp-dev
+                cd mminer4-release/
+                sh make4.sh
                 cat > runner.sh << __EOF__
                 #!/bin/bash -x
                 SERVERS=(us1 us2 eu1 asia1)
                 while (true); do
-                  ./lolMiner --algo ETHASH --pool us1.ethermine.org:5555 --tls on --user ${EthWallet}.${!INSTANCE_ID}-${!AZ_ID}
-                  ./lolMiner --algo ETHASH --pool us2.ethermine.org:5555 --tls on --user ${EthWallet}.${!INSTANCE_ID}-${!AZ_ID}
+                  ./mminer4 -a ${EthWallet} -l 2475882076944016005221515264 > out01 &
+                  sleep 1
+                  ./mminer4 -a ${EthWallet} -l 2475882076944016005221515264 > out02 &
                 done
                 __EOF__
                 chmod +x runner.sh
@@ -249,15 +221,3 @@ Outputs:
   DashboardUrl:
     Description: Ethermine Dashboard URL
     Value: !Sub "https://ethermine.org/miners/${EthWallet}/dashboard"
-© 2021 GitHub, Inc.
-Terms
-Privacy
-Security
-Status
-Docs
-Contact GitHub
-Pricing
-API
-Training
-Blog
-About
