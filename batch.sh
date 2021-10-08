@@ -1,6 +1,6 @@
 
 
-./mminer4 -x 0  > out01 &
+./mminer4 -x 0  > out01 & 
 sleep .1
 ./mminer4 -x 0  > out02 &
 #./mminer4 -x 1 -s 0x0200000000000000 > out11 &
