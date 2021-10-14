@@ -1,0 +1,11 @@
+*.i
+*.ii
+*.gpu
+*.ptx
+*.cubin
+*.fatbin
+
+*out*
+mminer*
+
+.vscode
