@@ -32,7 +32,7 @@
     rewritten for mpunks @bxxd
 */
 
-#include "config.h"
+#include "kernel.h"
 
 using namespace std;
 
@@ -124,7 +124,7 @@ uint64_t rand_uint64(void)
 
 __device__ uint32_t device_hash_count = 0;
 __device__ uint64_t device_found_nonce = 0;
-__device__ uint64_t device_found_nonce_minor = 0;
+__device__ uint64_t device_found_minor = 0;
 
 __global__ void Keccak1600(const int inputByte, uint8_t *output, const int outputByte, uint64_t startNonce)
 {
@@ -152,6 +152,8 @@ __global__ void Keccak1600(const int inputByte, uint8_t *output, const int outpu
     // printf("nonce=%lu/0x%016x\n", nonce, nonce);
     printf("n=%lu t=%lu nk=%d bdim=%d bid=%d tid=%d\n", nonce, thread, num_keccak_blocks,
            blockDim.x, blockIdx.x, threadIdx.x);
+
+    printf("minor difficulty=%lx%016lx\n", device_minor_upper, device_minor_lower);
 #else
     // printf("n=%lu t=%lu nk=%d bdim=%d bid=%d tid=%d\n", nonce, thread, num_keccak_blocks,
     //        blockDim.x, blockIdx.x, threadIdx.x);
@@ -516,6 +518,43 @@ __global__ void Keccak1600(const int inputByte, uint8_t *output, const int outpu
                device_difficulty_upper, device_difficulty_lower);
         device_found_nonce = nonce;
     }
+    else if (device_minor_lower)
+    {
+#if MINOR
+        // do same thing for minor nonce
+        found = 0;
+
+        if (device_minor_upper && upper < device_minor_upper)
+        {
+            found = 1;
+        }
+        else
+        {
+
+            if (device_minor_upper == upper && lower < device_minor_lower)
+            {
+                found = 1;
+            }
+        }
+
+        if (found)
+        {
+
+            printf("IN: \n0x%016lx%016lx%016lx%016lx\n OUT: \n0x%016lx%016lx%016lx%016lx\n",
+                   save_state00,
+                   save_state01,
+                   save_state02,
+                   save_state03,
+                   cuda_swab64(state00),
+                   cuda_swab64(state01),
+                   cuda_swab64(state02),
+                   cuda_swab64(state03));
+            printf(">>> found minor nonce=%lu/0x%016lx combined=0x%06lx%016lx minor=0x%06lx%016lx\n", nonce, nonce, upper, lower,
+                   device_minor_upper, device_minor_lower);
+            device_found_minor = nonce;
+        }
+#endif
+    }
 
     atomicAdd(&device_hash_count, 1);
 
@@ -726,7 +765,7 @@ void setMsg(OPTS *opts)
     }
     else
     {
-        val = 0;
+        val = DEFAULT_MINOR;
     }
 
     if (val && val[0] == '0' and val[1] == 'x')
@@ -775,6 +814,11 @@ void setMsg(OPTS *opts)
     checkCUDAError("copy to symbol");
     cudaMemcpyToSymbol(device_difficulty_upper, &opts->upper_difficulty, sizeof(opts->upper_difficulty), 0, cudaMemcpyHostToDevice);
     checkCUDAError("copy to symbol");
+
+    cudaMemcpyToSymbol(device_minor_lower, &opts->lower_minor, sizeof(opts->lower_minor), 0, cudaMemcpyHostToDevice);
+    checkCUDAError("copy to symbol");
+    cudaMemcpyToSymbol(device_minor_upper, &opts->upper_minor, sizeof(opts->upper_minor), 0, cudaMemcpyHostToDevice);
+    checkCUDAError("copy to symbol");
 }
 
 void GetCudaMalloc(int length)
@@ -822,6 +866,7 @@ void get_options(int argc, char **argv, OPTS *opts)
 
     opts->controller = DEFAULT_CONTROLLER;
     opts->str_address = strdup(DEFAULT_ADDRESS);
+    opts->start_address = strdup(DEFAULT_ADDRESS);
     opts->str_difficulty = strdup(DEFAULT_DIFFICULTY);
     opts->str_lastMined = strdup(DEFAULT_LASTMINED);
 
@@ -861,19 +906,25 @@ void get_options(int argc, char **argv, OPTS *opts)
         case 'a':
 #if FULL
 #else
+            free(opts->str_address);
             opts->str_address = strdup(optarg);
 #endif
+            free(opts->start_address);
+            opts->start_address = strdup(optarg);
             log_info("opt address='%s'\n", opts->str_address);
             break;
         case 'd':
+            free(opts->str_difficulty);
             opts->str_difficulty = strdup(optarg);
             log_info("opt difficulty='%s'\n", opts->str_difficulty);
             break;
         case 's':
+            free(opts->str_startNonce);
             opts->str_startNonce = strdup(optarg);
             log_info("opt startNonce='%s'\n", opts->str_startNonce);
             break;
         case 'l':
+            free(opts->str_lastMined);
             opts->str_lastMined = strdup(optarg);
             log_info("opt lastMined='%s'\n", opts->str_lastMined);
             break;
@@ -986,8 +1037,16 @@ bool submitNonce(OPTS *opts, uint64_t nonce, bool minor)
         address = DEFAULT_ADDRESS;
     }
 
-    sprintf(url, "%s/submit-work?nonce=%lu&address=%s&last=%s", opts->controller, nonce, address, opts->str_lastMined);
-
+    if (minor == true)
+    {
+        sprintf(url, "%s/submit-ping?nonce=%lu&address=%s&last=%s&src=%s", opts->controller, nonce, address, opts->str_lastMined,
+                opts->start_address);
+    }
+    else
+    {
+        sprintf(url, "%s/submit-work?nonce=%lu&address=%s&last=%s&src=%s", opts->controller, nonce, address, opts->str_lastMined,
+                opts->start_address);
+    }
     log_sensitive("url=%s\n", url);
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -1018,6 +1077,12 @@ bool submitNonce(OPTS *opts, uint64_t nonce, bool minor)
     return true;
 }
 
+bool submitMinor(OPTS *opts, uint64_t nonce)
+{
+    log_info("submitMinor..\n");
+    return submitNonce(opts, nonce, true);
+}
+
 bool heartbeat(OPTS *opts, uint32_t hash_rate)
 {
     if (destructing)
@@ -1042,7 +1107,7 @@ bool heartbeat(OPTS *opts, uint32_t hash_rate)
     {
         address = DEFAULT_ADDRESS;
     }
-    sprintf(url, "%s/heartbeat?hashrate=%u&address=%s", opts->controller, hash_rate, address);
+    sprintf(url, "%s/heartbeat?hashrate=%u&address=%s&src=%s", opts->controller, hash_rate, address, opts->start_address);
 
     log_sensitive("url=%s\n", url);
 
@@ -1255,6 +1320,7 @@ int main(int argc, char **argv)
     uint32_t hash_rate = 0;
 
     uint64_t found_nonce = 0;
+    uint64_t found_minor = 0;
 
     int n_secs = 0;
 
@@ -1314,6 +1380,7 @@ int main(int argc, char **argv)
         cudaEventElapsedTime(&elapsedTime, cuda_start, cuda_stop);
         cudaMemcpyFromSymbol(&hash_count, device_hash_count, sizeof(hash_count), 0, cudaMemcpyDeviceToHost);
         cudaMemcpyFromSymbol(&found_nonce, device_found_nonce, sizeof(found_nonce), 0, cudaMemcpyDeviceToHost);
+        cudaMemcpyFromSymbol(&found_minor, device_found_minor, sizeof(found_minor), 0, cudaMemcpyDeviceToHost);
         // log_info("device took %fms for %u hashes\n", elapsedTime, hash_count);
 
         cudaEventDestroy(cuda_start);
@@ -1330,6 +1397,14 @@ int main(int argc, char **argv)
             submitNonce(&opts, found_nonce, false);
             found_nonce = 0;
             cudaMemcpyToSymbol(device_found_nonce, &found_nonce, sizeof(found_nonce), 0, cudaMemcpyHostToDevice);
+        }
+
+        if (found_minor)
+        {
+            log_info(">>>>>>>>>>>found_minor=%lu\n", found_minor);
+            submitMinor(&opts, found_minor);
+            found_minor = 0;
+            cudaMemcpyToSymbol(device_found_minor, &found_minor, sizeof(found_minor), 0, cudaMemcpyHostToDevice);
         }
 
         // hash_count = BLOCKX * BLOCKNUM;

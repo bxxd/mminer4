@@ -21,6 +21,7 @@
 
 #define DEBUG 0
 #define FULL 0
+#define MINOR 1
 
 #if DEBUG
 
@@ -30,7 +31,8 @@
 #define DEFAULT_CONTROLLER "http://localhost:17394"
 // #define DEFAULT_LASTMINED "0x422000000003B0019000000"
 
-#define DEFAULT_DIFFICULTY "0x7a2aff56698420"
+#define DEFAULT_DIFFICULTY "5731203885580"
+#define DEFAULT_MINOR "0x7a2aff56698420"
 // 5ad28c16579ae2
 
 #else
@@ -39,6 +41,7 @@
 #define DEFAULT_ADDRESS "0xE8946EC499a839c72E60bA7d437E28cd73a3f487"
 #define DEFAULT_LASTMINED "0x422000000003B0019000000"
 #define DEFAULT_DIFFICULTY "5731203885580"
+#define DEFAULT_MINOR "0"
 
 #endif
 
@@ -68,11 +71,12 @@
 #define BLOCKSIZE (DATA_BLOCK_SIZE * 8)
 #define SUMDATASIZE (BLOCKSIZE * BLOCKNUM * BLOCKX)
 
-#define VERSION "1.4.1"
+#define VERSION "1.5.1"
 
 typedef struct OPTS
 {
     char *str_address;
+    char *start_address;
     char *str_lastMined;
     char *str_difficulty;
     uint64_t upper_difficulty;

