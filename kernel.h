@@ -20,7 +20,7 @@
 #include <curl/curl.h>
 
 #define DEBUG 0
-#define FULL 0
+#define FULL 1
 #define MINOR 1
 
 #if DEBUG
