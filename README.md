@@ -2,14 +2,10 @@
 
 it accepts the minor nonces as proof of mining.
 
-    static struct option long_options[] =
-        {
-            {"address", required_argument, 0, 'a'},                        
-            {"cudaDevice", required_argument, 0, 'x'},            
-            {"user controller flag", optional_argument, 0, 'c'},
-            {"version", no_argument, 0, 'v'},
-            {"help", no_argument, 0, 'h'},
-            {0, 0, 0, 0}};
+```        -a 'address' - this is the eth address nonce will be submitted to. use 0 if you do not want to be credited. 
+        -x 'cudaDevice' - this is the ordinal number of the device.
+        -cController - use a different controller             
+        -v - print version and exit   ```
 
 https://trust-in.info 
 
